@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Loader2, ArrowRight } from 'lucide-react';
 
+import { apiRequest } from '../lib/api';
+
 interface LoginProps {
   onSwitch: () => void;
 }
@@ -19,21 +21,14 @@ export const LoginView: React.FC<LoginProps> = ({ onSwitch }) => {
     setError('');
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const data = await apiRequest<{ user: any }>('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: { email, password },
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Login failed');
-      }
-
-      const data = await res.json();
       login(data.user);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }

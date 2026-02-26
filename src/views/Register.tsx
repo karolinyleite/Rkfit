@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Loader2, ArrowRight } from 'lucide-react';
 
+import { apiRequest } from '../lib/api';
+
 interface RegisterProps {
   onSwitch: () => void;
 }
@@ -20,21 +22,14 @@ export const RegisterView: React.FC<RegisterProps> = ({ onSwitch }) => {
     setError('');
 
     try {
-      const res = await fetch('/api/auth/register', {
+      const data = await apiRequest<{ user: any }>('/api/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: { name, email, password },
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Registration failed');
-      }
-
-      const data = await res.json();
       login(data.user);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Registration failed');
     } finally {
       setIsLoading(false);
     }

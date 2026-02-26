@@ -1,27 +1,13 @@
 import { Pool } from 'pg';
-import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { createRequire } from 'module';
 
 // Detect environment
 const isPostgres = !!process.env.POSTGRES_URL;
 
 let pool: Pool | null = null;
-let sqlite: Database.Database | null = null;
-
-if (isPostgres) {
-  pool = new Pool({
-    connectionString: process.env.POSTGRES_URL,
-    ssl: { rejectUnauthorized: false },
-  });
-} else {
-  // Local SQLite Fallback
-  const dataDir = path.join(process.cwd(), 'data');
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir);
-  }
-  sqlite = new Database(path.join(dataDir, 'nutrition.db'));
-}
+let sqlite: any = null;
 
 // Helper to query the database (Adapter Pattern)
 export const query = async (text: string, params: any[] = []) => {
@@ -61,6 +47,11 @@ export const query = async (text: string, params: any[] = []) => {
 export const initDb = async () => {
   try {
     if (isPostgres) {
+      pool = new Pool({
+        connectionString: process.env.POSTGRES_URL,
+        ssl: { rejectUnauthorized: false },
+      });
+      
       // Postgres Schema
       await query(`
         CREATE TABLE IF NOT EXISTS users (
@@ -98,6 +89,21 @@ export const initDb = async () => {
         );
       `);
     } else {
+      // Local SQLite Fallback
+      const dataDir = path.join(process.cwd(), 'data');
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir);
+      }
+      
+      try {
+        const require = createRequire(import.meta.url);
+        const Database = require('better-sqlite3');
+        sqlite = new Database(path.join(dataDir, 'nutrition.db'));
+      } catch (e) {
+        console.error('Failed to load better-sqlite3:', e);
+        throw e;
+      }
+
       // SQLite Schema
       await query(`
         CREATE TABLE IF NOT EXISTS users (
