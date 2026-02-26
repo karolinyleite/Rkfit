@@ -82,6 +82,7 @@ export const ScannerView: React.FC = () => {
       <AnimatePresence>
         {(scanState === 'scanning' || scanState === 'analyzing') && (
           <motion.div 
+            key="scanning-overlay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -119,6 +120,7 @@ export const ScannerView: React.FC = () => {
       <AnimatePresence>
         {scanState === 'result' && (
           <motion.div 
+            key="result-card"
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
@@ -188,6 +190,7 @@ export const ScannerView: React.FC = () => {
       <AnimatePresence>
         {scanState === 'idle' && (
           <motion.div 
+            key="bottom-controls"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
