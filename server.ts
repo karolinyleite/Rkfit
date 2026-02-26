@@ -6,7 +6,7 @@ import path from 'path';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import db from './server/db';
+import { query, initDb } from './server/db';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -17,6 +17,9 @@ async function startServer() {
   const httpServer = createServer(app);
   const io = new Server(httpServer);
   const PORT = 3000;
+
+  // Initialize DB
+  await initDb();
 
   app.use(express.json());
   app.use(cookieParser());
@@ -53,13 +56,18 @@ async function startServer() {
     const { email, password, name } = req.body;
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
-      const stmt = db.prepare('INSERT INTO users (email, password, name) VALUES (?, ?, ?)');
-      const info = stmt.run(email, hashedPassword, name);
-      const userId = info.lastInsertRowid;
+      
+      const result = await query(
+        'INSERT INTO users (email, password, name) VALUES ($1, $2, $3) RETURNING id',
+        [email, hashedPassword, name]
+      );
+      const userId = result.rows[0].id;
 
       // Initialize stats
-      const statsStmt = db.prepare('INSERT INTO stats (user_id, weight, goal_weight, daily_calorie_goal, streak, junk_food_free_days) VALUES (?, ?, ?, ?, ?, ?)');
-      statsStmt.run(userId, 78.5, 72.0, 2200, 0, 0);
+      await query(
+        'INSERT INTO stats (user_id, weight, goal_weight, daily_calorie_goal, streak, junk_food_free_days) VALUES ($1, $2, $3, $4, $5, $6)',
+        [userId, 78.5, 72.0, 2200, 0, 0]
+      );
 
       const token = jwt.sign({ id: userId, email }, JWT_SECRET);
       res.cookie('token', token, { 
@@ -69,9 +77,10 @@ async function startServer() {
       });
       res.json({ user: { id: userId, email, name } });
     } catch (error: any) {
-      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      if (error.code === '23505') { // Postgres unique violation code
         return res.status(400).json({ error: 'Email already exists' });
       }
+      console.error(error);
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -80,8 +89,8 @@ async function startServer() {
   app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
-      const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
-      const user: any = stmt.get(email);
+      const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+      const user = result.rows[0];
 
       if (!user || !(await bcrypt.compare(password, user.password))) {
         return res.status(401).json({ error: 'Invalid credentials' });
@@ -95,6 +104,7 @@ async function startServer() {
       });
       res.json({ user: { id: user.id, email: user.email, name: user.name } });
     } catch (error) {
+      console.error(error);
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -106,47 +116,43 @@ async function startServer() {
   });
 
   // Get User Data (Stats & Logs)
-  app.get('/api/user/data', authenticateToken, (req: any, res) => {
+  app.get('/api/user/data', authenticateToken, async (req: any, res) => {
     const userId = req.user.id;
     try {
-      const statsStmt = db.prepare('SELECT * FROM stats WHERE user_id = ?');
-      const stats = statsStmt.get(userId);
+      const statsResult = await query('SELECT * FROM stats WHERE user_id = $1', [userId]);
+      const stats = statsResult.rows[0];
 
-      const logsStmt = db.prepare('SELECT * FROM logs WHERE user_id = ? ORDER BY created_at DESC');
-      const logs = logsStmt.all(userId);
-
-      // Calculate macros from logs for today
-      // In a real app, this would be more complex date filtering
-      // For prototype, we just return all logs and let frontend filter or assume all are relevant
+      const logsResult = await query('SELECT * FROM logs WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
+      const logs = logsResult.rows;
       
       res.json({ stats, logs });
     } catch (error) {
+      console.error(error);
       res.status(500).json({ error: 'Server error' });
     }
   });
 
   // Add Log
-  app.post('/api/logs', authenticateToken, (req: any, res) => {
+  app.post('/api/logs', authenticateToken, async (req: any, res) => {
     const userId = req.user.id;
     const { id, type, name, calories, macros, time, prepMethod } = req.body;
     
     try {
-      const stmt = db.prepare(`
-        INSERT INTO logs (id, user_id, type, name, calories, protein, carbs, fats, time, prep_method)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-      
-      stmt.run(
-        id, 
-        userId, 
-        type, 
-        name, 
-        calories, 
-        macros?.protein || 0, 
-        macros?.carbs || 0, 
-        macros?.fats || 0, 
-        time, 
-        prepMethod || null
+      await query(
+        `INSERT INTO logs (id, user_id, type, name, calories, protein, carbs, fats, time, prep_method)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [
+          id, 
+          userId, 
+          type, 
+          name, 
+          calories, 
+          macros?.protein || 0, 
+          macros?.carbs || 0, 
+          macros?.fats || 0, 
+          time, 
+          prepMethod || null
+        ]
       );
 
       // Emit real-time update
@@ -160,23 +166,28 @@ async function startServer() {
   });
 
   // Update Weight
-  app.post('/api/user/weight', authenticateToken, (req: any, res) => {
+  app.post('/api/user/weight', authenticateToken, async (req: any, res) => {
     const userId = req.user.id;
     const { weight } = req.body;
     try {
-      const stmt = db.prepare('UPDATE stats SET weight = ? WHERE user_id = ?');
-      stmt.run(weight, userId);
+      await query('UPDATE stats SET weight = $1 WHERE user_id = $2', [weight, userId]);
       res.json({ success: true });
     } catch (error) {
+      console.error(error);
       res.status(500).json({ error: 'Server error' });
     }
   });
 
   // Check Auth Status
-  app.get('/api/auth/me', authenticateToken, (req: any, res) => {
-    const stmt = db.prepare('SELECT id, email, name FROM users WHERE id = ?');
-    const user = stmt.get(req.user.id);
-    res.json({ user });
+  app.get('/api/auth/me', authenticateToken, async (req: any, res) => {
+    try {
+      const result = await query('SELECT id, email, name FROM users WHERE id = $1', [req.user.id]);
+      const user = result.rows[0];
+      res.json({ user });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Server error' });
+    }
   });
 
   // --- Vite Middleware ---

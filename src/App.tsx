@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { NutritionProvider } from './context/NutritionContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Layout } from './components/Layout';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { HomeView } from './views/Home';
 import { ScannerView } from './views/Scanner';
 import { WorkoutView } from './views/Workout';
@@ -71,8 +72,10 @@ const AppContent = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

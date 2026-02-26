@@ -91,10 +91,21 @@ export const NutritionProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     if (!user) return;
 
-    fetch('/api/user/data')
-      .then(res => res.json())
-      .then(data => {
-        if (data.stats) {
+    const fetchData = async () => {
+      try {
+        const res = await fetch('/api/user/data');
+        
+        if (!res.ok) {
+          if (res.status === 401) {
+            console.error('Unauthorized access to user data');
+            return;
+          }
+          throw new Error(`Failed to fetch data: ${res.status}`);
+        }
+
+        const data = await res.json();
+        
+        if (data && data.stats) {
           // Calculate consumed/burned from logs (simplified for prototype)
           let consumed = 0;
           let burned = 0;
@@ -102,24 +113,26 @@ export const NutritionProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           let carbs = 0;
           let fats = 0;
 
-          data.logs.forEach((log: any) => {
+          const safeLogs = Array.isArray(data.logs) ? data.logs : [];
+
+          safeLogs.forEach((log: any) => {
             if (log.type === 'meal') {
-              consumed += log.calories;
+              consumed += log.calories || 0;
               protein += log.protein || 0;
               carbs += log.carbs || 0;
               fats += log.fats || 0;
             } else {
-              burned += log.calories;
+              burned += log.calories || 0;
             }
           });
 
           setUserStats(prev => ({
             ...prev,
-            weight: data.stats.weight,
-            goalWeight: data.stats.goal_weight,
-            dailyCalorieGoal: data.stats.daily_calorie_goal,
-            streak: data.stats.streak,
-            junkFoodFreeDays: data.stats.junk_food_free_days,
+            weight: data.stats.weight || 78.5,
+            goalWeight: data.stats.goal_weight || 72.0,
+            dailyCalorieGoal: data.stats.daily_calorie_goal || 2200,
+            streak: data.stats.streak || 0,
+            junkFoodFreeDays: data.stats.junk_food_free_days || 0,
             caloriesConsumed: consumed,
             caloriesBurned: burned,
             macros: {
@@ -130,17 +143,26 @@ export const NutritionProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }));
           
           // Map DB logs to UI logs
-          setLogs(data.logs.map((log: any) => ({
+          setLogs(safeLogs.map((log: any) => ({
             id: log.id,
             type: log.type,
             name: log.name,
             calories: log.calories,
-            macros: { protein: log.protein, carbs: log.carbs, fats: log.fats },
+            macros: { 
+              protein: log.protein || 0, 
+              carbs: log.carbs || 0, 
+              fats: log.fats || 0 
+            },
             time: log.time,
             prepMethod: log.prep_method
           })));
         }
-      });
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+
+    fetchData();
   }, [user]);
 
   // Socket.io Connection

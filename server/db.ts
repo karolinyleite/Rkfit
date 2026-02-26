@@ -1,48 +1,68 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
+import { Pool } from 'pg';
 
-// Ensure the data directory exists
-const dataDir = path.join(process.cwd(), 'data');
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir);
-}
+// Use environment variables for connection
+// In Vercel, these are automatically set when you link a Postgres database
+const pool = new Pool({
+  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+});
 
-const db = new Database(path.join(dataDir, 'nutrition.db'));
+// Helper to query the database
+export const query = async (text: string, params?: any[]) => {
+  const client = await pool.connect();
+  try {
+    const res = await client.query(text, params);
+    return res;
+  } finally {
+    client.release();
+  }
+};
 
-// Initialize tables
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE,
-    password TEXT,
-    name TEXT
-  );
+// Initialize tables (Run this once or use a migration tool in production)
+export const initDb = async () => {
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        name TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
-  CREATE TABLE IF NOT EXISTS logs (
-    id TEXT PRIMARY KEY,
-    user_id INTEGER,
-    type TEXT,
-    name TEXT,
-    calories INTEGER,
-    protein INTEGER,
-    carbs INTEGER,
-    fats INTEGER,
-    time TEXT,
-    prep_method TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  );
+    await query(`
+      CREATE TABLE IF NOT EXISTS logs (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        calories INTEGER NOT NULL,
+        protein INTEGER DEFAULT 0,
+        carbs INTEGER DEFAULT 0,
+        fats INTEGER DEFAULT 0,
+        time TEXT NOT NULL,
+        prep_method TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
-  CREATE TABLE IF NOT EXISTS stats (
-    user_id INTEGER PRIMARY KEY,
-    weight REAL,
-    goal_weight REAL,
-    daily_calorie_goal INTEGER,
-    streak INTEGER,
-    junk_food_free_days INTEGER,
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  );
-`);
+    await query(`
+      CREATE TABLE IF NOT EXISTS stats (
+        user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        weight DECIMAL(5,2) DEFAULT 78.50,
+        goal_weight DECIMAL(5,2) DEFAULT 72.00,
+        daily_calorie_goal INTEGER DEFAULT 2200,
+        streak INTEGER DEFAULT 0,
+        junk_food_free_days INTEGER DEFAULT 0,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
-export default db;
+    console.log('Database initialized successfully');
+  } catch (err) {
+    console.error('Error initializing database:', err);
+  }
+};
+
+export default { query, initDb };
