@@ -53,15 +53,9 @@ const AppContent = () => {
   return (
     <NutritionProvider>
       <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2 }}
-          className="h-full"
-        >
+        <div className="h-full animate-in fade-in duration-300">
           {renderView()}
-        </motion.div>
+        </div>
       </Layout>
     </NutritionProvider>
   );

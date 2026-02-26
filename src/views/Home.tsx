@@ -24,15 +24,15 @@ export const HomeView: React.FC = () => {
       <header className="flex justify-between items-start">
         <div>
           <p className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-1">
-            {format(new Date(), 'EEEE, MMM do')}
+            <span>{format(new Date(), 'EEEE, MMM do')}</span>
           </p>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-            Hello, Alex
+            <span>Hello, Alex</span>
           </h1>
         </div>
         <div className="flex items-center space-x-2 bg-slate-800/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.15)]">
           <Flame className="text-orange-500 fill-orange-500 animate-pulse" size={18} />
-          <span className="text-orange-100 font-bold text-sm">{userStats.streak} Day Streak</span>
+          <span className="text-orange-100 font-bold text-sm"><span>{userStats.streak}</span> <span>Day Streak</span></span>
         </div>
       </header>
 

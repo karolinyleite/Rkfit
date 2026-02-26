@@ -41,11 +41,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                   className="relative flex flex-col items-center justify-center w-16 h-16 group"
                 >
                   {isActive && (
-                    <motion.div
-                      layoutId="activeTab"
+                    <div
                       className="absolute inset-0 bg-gradient-to-t from-emerald-500/20 to-transparent rounded-xl"
-                      initial={false}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
                     />
                   )}
                   
@@ -64,8 +61,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                   </span>
                   
                   {isActive && (
-                    <motion.div
-                      layoutId="activeIndicator"
+                    <div
                       className="absolute bottom-1 w-1 h-1 bg-emerald-400 rounded-full"
                     />
                   )}

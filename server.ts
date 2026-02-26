@@ -75,7 +75,7 @@ async function startServer() {
         secure: true, 
         sameSite: 'none' 
       });
-      res.json({ user: { id: userId, email, name } });
+      res.json({ user: { id: userId, email, name }, token });
     } catch (error: any) {
       if (error.code === '23505') { // Postgres unique violation code
         return res.status(400).json({ error: 'Email already exists' });
@@ -102,7 +102,7 @@ async function startServer() {
         secure: true, 
         sameSite: 'none' 
       });
-      res.json({ user: { id: user.id, email: user.email, name: user.name } });
+      res.json({ user: { id: user.id, email: user.email, name: user.name }, token });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: 'Server error' });
