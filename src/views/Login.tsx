@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { motion } from 'framer-motion';
 import { Loader2, ArrowRight } from 'lucide-react';
 
 interface LoginProps {
@@ -42,11 +41,7 @@ export const LoginView: React.FC<LoginProps> = ({ onSwitch }) => {
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-slate-800/50 backdrop-blur-xl border border-white/5 rounded-3xl p-8"
-      >
+      <div className="w-full max-w-md bg-slate-800/50 backdrop-blur-xl border border-white/5 rounded-3xl p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
           <p className="text-slate-400">Sign in to continue your journey</p>
@@ -101,7 +96,7 @@ export const LoginView: React.FC<LoginProps> = ({ onSwitch }) => {
             </button>
           </p>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };
