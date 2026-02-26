@@ -1,0 +1,7 @@
+{
+  "name": "SmartLens Nutrition",
+  "description": "A futuristic, gamified calorie, exercise, and weight tracking app with AI food scanning.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
